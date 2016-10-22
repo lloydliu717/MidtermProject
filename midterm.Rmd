@@ -1,5 +1,5 @@
 ---
-title: "midtermproject"
+title: "midtermproject: County-level oil and gas production"
 author: "Zichun Liu"
 date: "10/11/2016"
 output: html_document
@@ -7,12 +7,52 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(jsonlite)
+library(knitr)
+library(ggplot2)
+library(reshape2)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(stringr)
 ```
 
+## County-level oil and gas production
+### 1. Data Description
+
+County-level data from oil and/or natural gas producing States—for onshore production in the lower 48 States only—are compiled on a State-by-State basis. Most States have production statistics available by county, field, or well, and these data were compiled at the county level to create a database of county-level production, annually for 2000 through 2011. Raw data for natural gas is for gross withdrawals, and oil data almost always include natural gas liquids. Note that State-provided natural gas withdrawals were not available for Illinois or Indiana; those estimates were produced using geocoded wells and State total production reported by the U.S. Department of Energy’s Energy Information Agency.
+
+In the data file, counties with increases or decreases in excess of $20 million in oil and/or natural gas production during 2000-11 are also identified. See Documentation and Maps for more details.
+
+Currently, an ERS update to this data product is not planned. Note that as of April 2014, however, 2011 data for Kentucky and Virginia (which had been previously approximated using 2010 data) are now available.
+
+Errata: On April 8, 2014, the 2010 and 2011 oil and gas production for three Pennsylvania counties (Crawford, Erie, and Mercer) were changed to correct a coding error.
+
+
+
+### Read Data
+```{r}
+oilgas <- read.csv2("oilgascounty.csv",header = TRUE,sep = ",")
+```
+### reduce variables
+```{r}
+head(oilgas)
+#test if id is unique
+length(unique(oilgas$geoid))
+#test if FIPS is same as geoid
+sum(oilgas$FIPS - oilgas$geoid)
+#remove FIPS
+oilgas$FIPS <- NULL
+```
 
 ```{r}
-library(jsonlite)
-
+a <- oilgas %>% gather(key = year,value = oil, oil2000:oil2011)
+b <- oilgas %>% gather(key = year,value = gas, gas2000:gas2011)
+b <- b[c("geoid","year","gas")]
+target <- cbind(a,b[-1])
+target <- target[-c(8:19,25)]
+target$year <- factor(str_replace_all(target$year, "oil",""))
+saveRDS(target,"tidydataoilgas.rds")
 ```
 
 
