@@ -1,5 +1,5 @@
 ---
-title: "midtermproject: County-level oil and gas production"
+title: "Midterm Project: County-level oil and gas production"
 author: "Zichun Liu"
 date: "10/11/2016"
 output: html_document
@@ -17,24 +17,49 @@ library(tidyr)
 library(stringr)
 ```
 
-## County-level oil and gas production
-### 1. Data Description
 
-County-level data from oil and/or natural gas producing States—for onshore production in the lower 48 States only—are compiled on a State-by-State basis. Most States have production statistics available by county, field, or well, and these data were compiled at the county level to create a database of county-level production, annually for 2000 through 2011. Raw data for natural gas is for gross withdrawals, and oil data almost always include natural gas liquids. Note that State-provided natural gas withdrawals were not available for Illinois or Indiana; those estimates were produced using geocoded wells and State total production reported by the U.S. Department of Energy’s Energy Information Agency.
+## Part One: Data Description
+
+### 1.1 Background and Data sources
+
+For many years, geologists knew that large quantities of oil and gas were trapped in shale and other lower-permeability formations around the United States. But drilling technology did not permit profitable extraction until the 1990s and early 2000s, when drilling companies combined and refined hydraulic fracturing ("fracking") and horizontal drilling methods. Hydraulic fracturing—shooting a mixture of water, chemical, and sand into underground rock formations at high pressure—frees trapped oil and gas to flow to the surface. Drilling wells horizontally lowers costs by allowing companies to access more oil and gas with one well bore.
+
+Prior to the application of unconventional drilling methods, U.S. natural gas production had been growing slowly, and U.S. oil production had been in decline since the mid-1980s. Both trends reversed during the 2000s.
+
+Most policies regarding oil and gas development occur at the State level, and most States with oil or gas production have a government agency that manages information on oil and gas wells. Using data from State agencies, the Energy Information Administration (EIA) publishes oil and gas production totals by State, but more local data for the entire United States had not been widely available.
+
+By acquiring disaggregated oil and gas production data from State agencies, ERS researchers have created a national county-level database providing yearly estimates of onshore production for counties in the lower 48 States. Some States had published county-level production statistics available to draw from. In other States, researchers acquired well-level databases which were then aggregated to the county level by year. Nationwide county-level data permit a more comprehensive assessment of the geography of oil and gas development. These county-level data also allow researchers to assess changes in rural production over the past decade.
+
+
+### 1.2 Description of Dataset
+
+County-level data from oil and/or natural gas producing States—for onshore production in the lower 48 States only—are compiled on a State-by-State basis. 
+
+Most States have production statistics available by county, field, or well, and these data were compiled at the county level to create a database of county-level production, annually for 2000 through 2011.
+
+Raw data for natural gas is for gross withdrawals, and oil data almost always include natural gas liquids. 
+
+Note that State-provided natural gas withdrawals were not available for Illinois or Indiana; those estimates were produced using geocoded wells and State total production reported by the U.S. Department of Energy’s Energy Information Agency.
 
 In the data file, counties with increases or decreases in excess of $20 million in oil and/or natural gas production during 2000-11 are also identified. See Documentation and Maps for more details.
 
-Currently, an ERS update to this data product is not planned. Note that as of April 2014, however, 2011 data for Kentucky and Virginia (which had been previously approximated using 2010 data) are now available.
 
-Errata: On April 8, 2014, the 2010 and 2011 oil and gas production for three Pennsylvania counties (Crawford, Erie, and Mercer) were changed to correct a coding error.
+### 1.3 How it was collected, assembled and maintained
+
+Data was collected and assembled by ERS researchers. And was maintained by ERS researchers as well.
 
 
+## Part Two: Data Cleaning and Preparation
 
 ### Read Data
 ```{r}
 oilgas <- read.csv2("oilgascounty.csv",header = TRUE,sep = ",")
+oilgas$County_Name <- str_replace_all(oilgas$County_Name, " County","")
+for (i in 1:length(letters)) {oilgas$County_Name <- str_replace_all(oilgas$County_Name, LETTERS[i],letters[i])}
+for (i in 1:length(state.abb)) {oilgas$Stabr <- str_replace_all(oilgas$Stabr, state.abb[i],state.name[i])}
+for (i in 1:length(letters)) {oilgas$Stabr <- str_replace_all(oilgas$Stabr, LETTERS[i],letters[i])}
 ```
-### reduce variables
+### Reduce variables
 ```{r}
 head(oilgas)
 #test if id is unique
@@ -52,7 +77,130 @@ b <- b[c("geoid","year","gas")]
 target <- cbind(a,b[-1])
 target <- target[-c(8:19,25)]
 target$year <- factor(str_replace_all(target$year, "oil",""))
+target$County_Name <- str_replace_all(target$County_Name, " County","")
+target <- target[-(8:10)]
+head(target)
 saveRDS(target,"tidydataoilgas.rds")
+rm(a,b,target)
+tidy <- readRDS("tidydataoilgas.rds")
+```
+
+```{r}
+tidy2 <- oilgas[,-(8:31)]
+tidy2$County_Name <- str_replace_all(tidy2$County_Name, " County","")
+saveRDS(tidy2,"data_without_year.rds")
+```
+
+## Part Three: Exploratory Data Analysis
+#### explore on year
+```{r}
+ggplot(tidy) + geom_point(aes(x = year, y = oil, color = Metro_Micro_Noncore_2013))
+ggplot(tidy) + geom_point(aes(x = year, y = gas, color = Metro_Micro_Noncore_2013))
+
+#Year by year
+ggplot(data = subset(tidy,subset = (year == 2000)), aes(x = Metro_Micro_Noncore_2013, y = oil, color = Metro_Micro_Noncore_2013)) + geom_jitter()
+ggplot(data = subset(tidy,subset = (year == 2000)), aes(x = Metro_Micro_Noncore_2013, y = gas, color = Metro_Micro_Noncore_2013)) + geom_jitter()
+
+
+# by id
+ggplot(data = subset(tidy,subset = (geoid == 1003)))+ geom_point(aes(x = year, y = gas),color = "blue")
+ggplot(data = subset(tidy,subset = (geoid == 1003)))+ geom_point(aes(x = year, y = oil), color = "red") 
+
+#by state
+ggplot(data = subset(tidy,subset = Stabr=="AL"))+ geom_point(aes(x = year, y = oil, color = Metro_Micro_Noncore_2013))
+ggplot(data = subset(tidy,subset = Stabr=="AL"))+ geom_point(aes(x = year, y = gas, color = Metro_Micro_Noncore_2013))
+```
+
+#### explore on non-year variables
+```{r}
+ggplot(data = tidy2, aes(x = Rural_Urban_Continuum_Code_2013, fill = Stabr)) + geom_bar(position = "dodge")
+```
+
+```{r}
+#calculate total withdraw in 12 years and level the sum
+for (i in 1:length(oilgas$geoid)) {
+  oilgas$ttoil[i] <- sum(oilgas[i,8:19])
+  a <-oilgas$ttoil[i]
+  if (a < 10) {oilgas$oil_level[i] <- (0)}
+  else if (a >= 10 & a < 1000) {oilgas$oil_level[i] <- (1)}
+  else if (a >= 1000 & a < 10000) {oilgas$oil_level[i] <- (2)}
+  else if (a >= 10^4 & a < 10^5) {oilgas$oil_level[i] <- (3)}
+  else if (a >= 10^5 & a < 10^6) {oilgas$oil_level[i] <- (4)}
+  else if (a >= 10^6 & a < 10^7) {oilgas$oil_level[i] <- (5)}
+  else if (a >= 10^7 & a < 10^8) {oilgas$oil_level[i] <- (6)}
+  else if (a >= 10^8 & a < 10^9) {oilgas$oil_level[i] <- (7)}
+  else {oilgas$oil_level[i] <- (8)}
+  oilgas$ttgas[i] <- sum(oilgas[i,20:31])
+  a <- oilgas$ttgas[i]
+  if (a < 10 | is.na(a) == TRUE) {oilgas$gas_level[i] <- (0)}
+  else if (a >= 10 & a < 1000) {oilgas$gas_level[i] <- (1)}
+  else if (a >= 1000 & a < 10000) {oilgas$gas_level[i] <- (2)}
+  else if (a >= 10^4 & a < 10^5) {oilgas$gas_level[i] <- (3)}
+  else if (a >= 10^5 & a < 10^6) {oilgas$gas_level[i] <- (4)}
+  else if (a >= 10^6 & a < 10^7) {oilgas$gas_level[i] <- (5)}
+  else if (a >= 10^7 & a < 10^8) {oilgas$gas_level[i] <- (6)}
+  else if (a >= 10^8 & a < 10^9) {oilgas$gas_level[i] <- (7)}
+  else if (a >= 10^9){oilgas$gas_level[i] <- (8)}
+}
+
+#pullout the level and region information
+pullout <- oilgas[,c(2,3,36,38)]
+colnames(pullout)[1] <- "region"
+colnames(pullout)[2] <- "subregion"
+
+#get map data for US counties and states
+county_map <- map_data("county")
+state_map <- map_data("state")
+
+#merge pullout and county_map
+pullout_map <- merge(county_map, pullout, by.x=c("region", "subregion"), by.y=c("region", "subregion"),  all.x=TRUE)
+
+#resort merged data
+pullout_map <- arrange(pullout_map, group, order)
+
+#relpace NA with 0's
+pullout_map[is.na(pullout_map)] <- 0
+
+#generate a disctrete color pallette    
+pal_red <- c("#ffffff","#fbb5bf","#f88b9e","#f67192","#f13367","#f23b7a","#eb004e","#ea0039","#cb0036")
+pal_blue <- c("#ffffff","#bfdeec","#9ac4e0","#3778b4","#233482","#222e70","#15275b","#021430","#000000")
+
+theme_clean <- function(base_size = 12) {
+  require(grid)
+  theme_grey(base_size) %+replace%
+    theme(
+      axis.title      =   element_blank(),
+      axis.text       =   element_blank(),
+      panel.background    =   element_blank(),
+      panel.grid      =   element_blank(),
+      axis.ticks.length   =   unit(0,"cm"),
+      axis.ticks.margin   =   unit(0,"cm"),
+      panel.margin    =   unit(0,"lines"),
+      plot.margin     =   unit(c(0,0,0,0),"lines"),
+      complete = TRUE
+    )
+}
+
+#choropleth map on oil level
+ggplot( pullout_map, aes( x = long , y = lat , group=group ) ) +
+  geom_polygon(linetype = 2, size = 0.1, colour = "lightgrey" , aes( fill = factor(oil_level) ) ) +
+  scale_fill_manual( values = pal_red ) +
+  expand_limits( x = pullout_map$long, y = pullout_map$lat ) +
+  coord_map( "polyconic" ) + 
+  labs(fill="Total Oil Production") + 
+  theme_clean( )+
+  geom_path( data = state_map, color = "darkgrey")
+
+
+#choropleth map on gas level
+ggplot( pullout_map, aes( x = long , y = lat , group=group ) ) +
+  geom_polygon(linetype = 2, size = 0.1, colour = "lightgrey" , aes( fill = factor(gas_level) ) ) +
+  scale_fill_manual( values = pal_blue ) +
+  expand_limits( x = pullout_map$long, y = pullout_map$lat ) +
+  coord_map( "polyconic" ) + 
+  labs(fill="Total Gas Production") + 
+  theme_clean( )+
+  geom_path( data = state_map, color = "darkgrey")
 ```
 
 
